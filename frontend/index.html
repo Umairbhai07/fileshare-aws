@@ -3,14 +3,278 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Sharebox</title>
-  <meta name="description" content="Share files with links that expire automatically.">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230e1116'/%3E%3Cpath d='M16 22V10m-5 5l5-5 5 5' stroke='white' stroke-width='2.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <title>Sharebox: send big files with links that expire</title>
+  <meta name="description" content="Upload a file, get a private link with an optional password and download limit, and it deletes itself within 24 hours.">
+  <meta property="og:title" content="Sharebox">
+  <meta property="og:description" content="Send big files with links that clean up after themselves.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230a0a0a'/%3E%3Cpath d='M16 21V10m-5 5l5-5 5 5' stroke='white' stroke-width='2.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap">
   <link rel="stylesheet" href="/assets/styles.css">
   <script src="/config.js"></script>
-  <script type="module" src="/assets/app.js"></script>
+  <script type="module" src="/assets/landing.js"></script>
 </head>
 <body>
-  <noscript>Sharebox needs JavaScript.</noscript>
+  <header class="lp-nav" id="nav">
+    <div class="wrap">
+      <a class="logo" href="/"><span class="logo-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5"/><path d="M4 14v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg></span><b>Share<span>box</span></b></a>
+      <nav class="lp-links">
+        <a href="#product">Product</a>
+        <a href="#how">How it works</a>
+        <a href="#pricing">Pricing</a>
+        <a href="#faq">FAQ</a>
+      </nav>
+      <div class="lp-cta" id="nav-cta">
+        <a class="btn btn-ghost hide-sm" href="/login">Sign in</a>
+        <a class="btn btn-dark" href="/signup">Get started</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- ============================================================ HERO -->
+    <section class="lp-hero">
+      <div class="wrap">
+        <a class="pill rise" href="#product"><b>New</b> QR codes and notes for every link <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+        <h1 class="rise" style="animation-delay:.06s">Send big files.<span class="grey">Gone in 24 hours.</span></h1>
+        <p class="lead rise" style="animation-delay:.12s">Sharebox uploads straight to the cloud, gives you a private link with an optional password and download limit, and deletes the file the moment its timer runs out.</p>
+        <div class="ctas rise" style="animation-delay:.18s">
+          <a class="btn btn-dark btn-lg" href="/signup">Start sharing free <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+          <a class="btn btn-lg" href="#how">See how it works</a>
+        </div>
+        <p class="fine rise" style="animation-delay:.22s">Free. No credit card. Up to 2 GB per file.</p>
+
+        <!-- product preview -->
+        <div class="preview" aria-hidden="true" data-reveal>
+          <div class="preview-glow"></div>
+          <div class="browser beam">
+            <div class="browser-bar"><i></i><i></i><i></i><span class="url">sharebox.app/app</span></div>
+            <div class="pv-body">
+              <div class="pv-side">
+                <div class="logo"><span class="logo-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5"/><path d="M4 14v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg></span><b>Share<span>box</span></b></div>
+                <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Overview</div>
+                <div class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>My files</div>
+                <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>Activity</div>
+                <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Usage</div>
+              </div>
+              <div class="pv-main">
+                <div class="pv-head">
+                  <div><p class="subtle" style="font-size:11px">Workspace</p><p class="t">My files</p></div>
+                  <div class="pv-kpis">
+                    <div><b>12</b><span>Live files</span></div>
+                    <div><b>148</b><span>Downloads</span></div>
+                    <div><b>3.2 GB</b><span>Stored</span></div>
+                  </div>
+                </div>
+                <div class="pv-rows">
+                  <div class="pv-row"><span class="ficon">mp4</span><div style="min-width:0"><p class="n">launch-video-final.mp4</p><p class="s">842 MB · Uploading</p></div><span class="cd subtle">—</span><div class="bar loop"><span></span></div></div>
+                  <div class="pv-row"><span class="ficon">fig</span><div style="min-width:0"><p class="n">design-system-v2.fig</p><p class="s">48 MB · 31 downloads</p></div><span class="cd" data-cd="83520">23h 12m</span><div class="bar anim"><span style="--w:92%"></span></div></div>
+                  <div class="pv-row"><span class="ficon">pdf</span><div style="min-width:0"><p class="n">contract-signed.pdf</p><p class="s">1.2 MB · Password</p></div><span class="cd" data-cd="41000">11h 23m</span><div class="bar anim"><span style="--w:48%"></span></div></div>
+                  <div class="pv-row"><span class="ficon">zip</span><div style="min-width:0"><p class="n">photos-wedding.zip</p><p class="s">1.8 GB · 5 / 10 downloads</p></div><span class="cd" data-cd="9300">2h 35m</span><div class="bar anim"><span style="--w:12%"></span></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="chip c1 float"><small>Upload complete</small><b><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12l5 5L20 7"/></svg>design-system-v2.fig</b></div>
+          <div class="chip c2 float"><small>Link expires in</small><b class="num" id="hero-clock">05:59:12</b></div>
+          <div class="chip c3 float"><small>Downloaded</small><b>31 times</b></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ STATS -->
+    <div class="lp-stats" data-reveal>
+      <div><b>2 GB</b><span>per file, direct to S3</span></div>
+      <div><b>24 h</b><span>maximum lifetime</span></div>
+      <div><b>3</b><span>layers of auto-delete</span></div>
+      <div><b>0</b><span>files kept forever</span></div>
+    </div>
+
+    <!-- ============================================================ PRODUCT -->
+    <section class="lp-section" id="product">
+      <div class="wrap">
+        <p class="eyebrow" data-reveal>Product</p>
+        <h2 data-reveal>Everything you need to share a file. Nothing you don't.</h2>
+        <p class="sub" data-reveal>Fast uploads, private links and a clean dashboard to watch them, built on the same AWS services that run production apps.</p>
+
+        <div class="bento">
+          <div class="block span-4" data-reveal>
+            <div class="art">
+              <div class="art-uploads">
+                <div class="up-row"><span class="ficon">mov</span><div><p class="n">product-demo.mov</p><div class="bar loop"><span></span></div></div><span class="pct">412 MB</span></div>
+                <div class="up-row"><span class="ficon">psd</span><div><p class="n">brand-assets.psd</p><div class="bar anim"><span style="--w:100%"></span></div></div><span class="pct">Ready</span></div>
+                <div class="up-row"><span class="ficon">csv</span><div><p class="n">q3-report.csv</p><div class="bar anim"><span style="--w:100%"></span></div></div><span class="pct">Ready</span></div>
+              </div>
+            </div>
+            <div class="txt"><h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>Direct-to-cloud uploads</h3><p>Files go straight from your browser to S3 with presigned URLs. Three at a time, with live speed and time left. Drag and drop anywhere.</p></div>
+          </div>
+          <div class="block span-2" data-reveal style="transition-delay:.08s">
+            <div class="art">
+              <div class="ring" id="ring">
+                <svg viewBox="0 0 120 120"><circle class="track" cx="60" cy="60" r="52" fill="none" stroke-width="6"/><circle class="val" cx="60" cy="60" r="52" fill="none" stroke-width="6" stroke-dasharray="326.7" stroke-dashoffset="80"/></svg>
+                <div class="lbl"><b id="ring-t">17:42:08</b><span>until deleted</span></div>
+              </div>
+            </div>
+            <div class="txt"><h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M9 2h6"/></svg>Self-destructing links</h3><p>Pick 1, 6, 12 or 24 hours. When the timer ends, the link dies and the file is erased.</p></div>
+          </div>
+          <div class="block span-2" data-reveal>
+            <div class="art">
+              <div class="lock-card">
+                <p style="font-size:12px;color:var(--n500)">This file is password protected</p>
+                <div class="pw"><i></i><i></i><i></i><i></i><i></i><i></i><span class="caret"></span></div>
+                <div style="display:flex;justify-content:space-between;margin-top:12px;font-size:12px"><span class="muted">Downloads</span><b class="num">3 / 5</b></div>
+                <div class="bar anim" style="margin-top:6px;height:4px"><span style="--w:60%"></span></div>
+              </div>
+            </div>
+            <div class="txt"><h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="11" width="14" height="10" rx="1"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Passwords and limits</h3><p>Lock a link with a password and stop it after a set number of downloads.</p></div>
+          </div>
+          <div class="block span-4" data-reveal style="transition-delay:.08s">
+            <div class="art">
+              <div class="chart-art">
+                <div class="cols"><i style="--h:22%"></i><i style="--h:38%"></i><i style="--h:30%"></i><i style="--h:56%"></i><i style="--h:72%"></i><i style="--h:60%"></i><i style="--h:88%"></i><i style="--h:64%"></i><i style="--h:46%"></i><i style="--h:18%"></i></div>
+                <div class="funnel">
+                  <div><div class="r"><span>Uploaded</span><b>12</b></div><div class="bar anim"><span style="--w:100%"></span></div></div>
+                  <div><div class="r"><span>Opened</span><b>9</b></div><div class="bar anim"><span style="--w:75%"></span></div></div>
+                  <div><div class="r"><span>Downloaded</span><b>7</b></div><div class="bar anim"><span style="--w:58%"></span></div></div>
+                  <div><div class="r"><span>Expired</span><b>4</b></div><div class="bar anim"><span style="--w:33%"></span></div></div>
+                </div>
+              </div>
+            </div>
+            <div class="txt"><h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Downloads and usage</h3><p>See every download as it happens, uploads by the hour, storage by file type and your all-time totals.</p></div>
+          </div>
+          <div class="mini">
+            <div class="block" data-reveal><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3"/></svg></div><h3>QR codes</h3><p>Every link has a QR code for phones and slides.</p></div>
+            <div class="block" data-reveal style="transition-delay:.05s"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h16v11H8l-4 4z"/></svg></div><h3>Notes for recipients</h3><p>Add a short message that shows on the download page.</p></div>
+            <div class="block" data-reveal style="transition-delay:.1s"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/></svg></div><h3>Edit after sharing</h3><p>Rename, extend, change the password or the limit.</p></div>
+            <div class="block" data-reveal style="transition-delay:.15s"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M10 11v6M14 11v6M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg></div><h3>Bulk actions</h3><p>Select many files to copy links or delete them at once.</p></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ HOW -->
+    <section class="lp-section grey" id="how">
+      <div class="wrap">
+        <p class="eyebrow" data-reveal>How it works</p>
+        <h2 data-reveal>Four steps. Nothing left behind.</h2>
+        <div class="steps">
+          <div class="step" data-reveal><span class="n">1</span><h3>Drop your files</h3><p>Drag files onto the dashboard. They upload straight to encrypted storage.</p></div>
+          <div class="step" data-reveal style="transition-delay:.08s"><span class="n">2</span><h3>Set the rules</h3><p>Choose how long the link lives, add a password, a download limit or a note.</p></div>
+          <div class="step" data-reveal style="transition-delay:.16s"><span class="n">3</span><h3>Share the link</h3><p>Copy the link or show the QR code. Watch the downloads come in live.</p></div>
+          <div class="step" data-reveal style="transition-delay:.24s"><span class="n">4</span><h3>It disappears</h3><p>When time is up the file is deleted automatically. Nothing to clean up.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ AWS + PRIVACY -->
+    <section class="lp-section" id="teams">
+      <div class="wrap">
+        <div class="split">
+          <div class="panel dark" data-reveal>
+            <p class="eyebrow">Under the hood</p>
+            <h3>Built like a production system, not a demo.</h3>
+            <div class="tags">
+              <span>CloudFront</span><span>S3</span><span>EC2 Auto Scaling</span><span>Load Balancer</span><span>Lambda</span><span>API Gateway</span><span>DynamoDB</span><span>SQS</span><span>Cognito</span><span>EventBridge</span><span>CloudWatch</span><span>Terraform</span><span>Docker</span><span>GitHub Actions</span>
+            </div>
+            <a class="btn btn-white" href="https://github.com/Umairbhai07/fileshare-aws" target="_blank" rel="noopener">See the code <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+          </div>
+          <div class="panel" data-reveal style="transition-delay:.08s">
+            <p class="eyebrow">Private by default</p>
+            <h3>Your files are never public, and never kept.</h3>
+            <ul>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12l5 5L20 7"/></svg>Encrypted at rest, served only over HTTPS</li>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12l5 5L20 7"/></svg>Download links are signed and last 5 minutes</li>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12l5 5L20 7"/></svg>Passwords are hashed, never stored as text</li>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12l5 5L20 7"/></svg>Three separate systems make sure files get deleted</li>
+            </ul>
+            <a class="btn btn-dark" href="/signup">Create your account <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ PRICING -->
+    <section class="lp-section grey" id="pricing">
+      <div class="wrap center">
+        <p class="eyebrow" data-reveal>Pricing</p>
+        <h2 data-reveal>Free while it's a portfolio project.</h2>
+        <p class="sub" data-reveal>Everything below is live today on the Free plan. Paid plans show where the product would go next.</p>
+        <div class="pricing" style="text-align:left">
+          <div class="plan featured beam" data-reveal>
+            <div class="top"><h3>Free</h3><span class="badge dark">Current</span></div>
+            <p class="price">$0 <small>forever</small></p>
+            <p class="d">For sending files to anyone, fast.</p>
+            <ul>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12l5 5L20 7"/></svg>2 GB per file, 10 GB live storage</li>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12l5 5L20 7"/></svg>Links from 1 to 24 hours</li>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12l5 5L20 7"/></svg>Passwords, limits, notes, QR codes</li>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12l5 5L20 7"/></svg>Download tracking and usage stats</li>
+            </ul>
+            <a class="btn btn-dark btn-block" href="/signup">Get started</a>
+          </div>
+          <div class="plan" data-reveal style="transition-delay:.06s">
+            <div class="top"><h3>Pro</h3><span class="badge">Coming soon</span></div>
+            <p class="price">$6 <small>/ month</small></p>
+            <p class="d">For freelancers who send work to clients.</p>
+            <ul>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12l5 5L20 7"/></svg>20 GB per file</li>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12l5 5L20 7"/></svg>Links up to 7 days</li>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12l5 5L20 7"/></svg>Your logo on the download page</li>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12l5 5L20 7"/></svg>Email when a file is downloaded</li>
+            </ul>
+            <button class="btn btn-block" disabled>Coming soon</button>
+          </div>
+          <div class="plan" data-reveal style="transition-delay:.12s">
+            <div class="top"><h3>Team</h3><span class="badge">Coming soon</span></div>
+            <p class="price">$15 <small>/ month</small></p>
+            <p class="d">For studios and small teams.</p>
+            <ul>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12l5 5L20 7"/></svg>Everything in Pro</li>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12l5 5L20 7"/></svg>Shared team workspace</li>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12l5 5L20 7"/></svg>Custom domain for links</li>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12l5 5L20 7"/></svg>Audit log export</li>
+            </ul>
+            <button class="btn btn-block" disabled>Coming soon</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ FAQ -->
+    <section class="lp-section" id="faq">
+      <div class="wrap center">
+        <p class="eyebrow" data-reveal>FAQ</p>
+        <h2 data-reveal>Questions, answered.</h2>
+        <div class="faq" style="text-align:left" data-reveal>
+          <details open><summary>What happens when a link expires?<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></summary><p>The link stops working right away and the file is deleted from storage within 15 minutes. A storage rule also removes anything older than a day, so nothing is ever kept by accident.</p></details>
+          <details><summary>Does the person I send it to need an account?<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></summary><p>No. They open the link, enter the password if you set one, and download. Only you need an account to upload.</p></details>
+          <details><summary>How big can my files be?<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></summary><p>Up to 2 GB per file and 10 GB of live files at once. Files go straight from your browser to Amazon S3, so big files upload as fast as your connection allows.</p></details>
+          <details><summary>Can I change a link after sharing it?<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></summary><p>Yes. You can rename the file, extend the timer (up to 24 hours after upload), add or remove the password, change the download limit, edit the note, or delete it immediately.</p></details>
+          <details><summary>Is this a real product?<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></summary><p>It's a working portfolio project that shows cloud architecture and DevOps on AWS: load-balanced Docker containers, serverless functions, infrastructure as code and automated deploys. Everything on this page works.</p></details>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ CTA -->
+    <section class="wrap">
+      <div class="final beam" data-reveal>
+        <h2>Ready to send something?</h2>
+        <p>Create a free account and share your first file in under a minute.</p>
+        <div class="ctas">
+          <a class="btn btn-dark btn-lg" href="/signup">Get started free <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+          <a class="btn btn-lg" href="/login">Sign in</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="lp-foot">
+    <div class="wrap">
+      <a class="logo" href="/"><span class="logo-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5"/><path d="M4 14v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg></span><b>Share<span>box</span></b></a>
+      <nav><a href="#product">Product</a><a href="#pricing">Pricing</a><a href="/login">Sign in</a><a href="/signup">Create account</a></nav>
+      <span>© 2026 Sharebox · A cloud portfolio project</span>
+    </div>
+  </footer>
 </body>
 </html>

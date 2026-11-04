@@ -1,61 +1,71 @@
-import { $, esc, formatBytes, countdown, ext, icon } from './util.js';
+import { $, esc, formatBytes, clock, fileIcon, icon, logoHtml } from './util.js';
 
+const DAY = 24 * 3600 * 1000;
 const id = location.pathname.startsWith('/d/') ? location.pathname.split('/')[2] : new URLSearchParams(location.search).get('id');
 const root = $('#root');
 let file;
+let timer;
 
-function message(title, text) {
-  root.innerHTML = `<div class="card share-card"><div class="top">
-    <div class="file-icon big">${icon('clock').replace('<svg', '<svg width="24" height="24"')}</div>
-    <h1>${esc(title)}</h1><div class="muted">${esc(text)}</div></div>
-    <div class="bottom"><a class="btn btn-lg" href="/">Share your own files</a></div></div>`;
+$('#hdr').innerHTML = `${logoHtml()}<a class="btn btn-ghost btn-sm" href="/signup">Share a file</a>`;
+
+function message(title, text, ic = 'clock') {
+  clearInterval(timer);
+  root.innerHTML = `<div class="share-card fade-up"><div class="top">
+    <div class="state-icon">${icon(ic, 26)}</div>
+    <h1>${esc(title)}</h1><p class="muted" style="margin-top:6px">${esc(text)}</p></div>
+    <form><a class="btn btn-dark" href="/signup">Share your own files</a>
+    <div class="note">Free, no card needed. Links expire within 24 hours.</div></form></div>`;
 }
 
 async function load() {
-  if (!id) return message('Link not found', 'This share link is incomplete.');
+  if (!id) return message('Link not found', 'This share link is incomplete.', 'alert');
   try {
     const res = await fetch(`/public/files/${encodeURIComponent(id)}`);
     const data = await res.json().catch(() => ({}));
-    if (res.status === 410) return message('This link has expired', 'Files are deleted automatically after they expire.');
-    if (!res.ok) return message('File not found', data.message || 'It may have been deleted by its owner.');
+    if (res.status === 410) return message('This link has expired', 'Files are deleted for good once their timer ends.');
+    if (!res.ok) return message('File not found', data.message || 'It may have been deleted by its owner.', 'alert');
     file = data.file;
     render();
-    setInterval(tickExpiry, 1000);
+    timer = setInterval(tick, 1000);
   } catch {
-    message('Something went wrong', 'Please try again in a moment.');
+    message('Something went wrong', 'Please try again in a moment.', 'alert');
   }
 }
 
 function render() {
-  const limitLeft = file.maxDownloads ? file.maxDownloads - file.downloads : null;
+  const left = file.maxDownloads ? Math.max(0, file.maxDownloads - file.downloads) : null;
   document.title = `${file.name} · Sharebox`;
-  root.innerHTML = `<div class="card share-card">
+  root.innerHTML = `<div class="share-card beam fade-up">
     <div class="top">
-      <div class="file-icon big">${esc(ext(file.name).slice(0, 4))}</div>
+      ${fileIcon(file.name)}
       <h1>${esc(file.name)}</h1>
-      <div class="muted">${formatBytes(file.size)} · ${esc(file.contentType)}</div>
+      <p class="muted" style="margin-top:6px">${formatBytes(file.size)} · ${esc(file.contentType || 'file')}</p>
+      ${file.message ? `<blockquote class="sender-note">${icon('message', 14)}<span>${esc(file.message)}</span></blockquote>` : ''}
     </div>
+    <div class="lifebar"><span id="life"></span></div>
     <div class="meta">
-      <div>Expires in<b id="exp">${countdown(file.expiresAt - Date.now())}</b></div>
+      <div>Expires in<b id="exp">${clock(file.expiresAt - Date.now())}</b></div>
       <div>Downloads<b>${file.downloads}</b></div>
-      <div>${limitLeft == null ? 'Limit' : 'Left'}<b>${limitLeft == null ? 'None' : limitLeft}</b></div>
+      <div>${left == null ? 'Limit' : 'Left'}<b>${left == null ? 'None' : left}</b></div>
     </div>
-    <form class="bottom" id="dl-form">
-      ${file.passwordProtected ? `<label class="field"><span>${icon('lock').replace('<svg', '<svg width="13" height="13" style="vertical-align:-2px"')} This file is password protected</span>
-        <input class="input" id="pw" type="password" placeholder="Enter password" required autocomplete="off" style="height:40px"></label>` : ''}
-      <div class="error-text hidden" id="err"></div>
-      <button class="btn btn-primary btn-lg" id="dl" type="submit">${icon('download')}Download</button>
-      <div class="muted" style="font-size:12px;text-align:center">Shared with Sharebox. The link stops working when the timer ends.</div>
+    <form id="dl-form">
+      ${file.passwordProtected ? `<label class="field"><span class="label">${icon('lock', 13)} Password protected</span>
+        <input class="input" id="pw" type="password" placeholder="Enter the password" required autocomplete="off"></label>` : ''}
+      <div class="alert hidden" id="err"></div>
+      <button class="btn btn-dark" id="dl" type="submit">${icon('download', 17)}Download</button>
+      <div class="note">${icon('shield', 13)} Delivered over a short-lived signed link. No account needed.</div>
     </form>
   </div>`;
   $('#dl-form').onsubmit = download;
+  tick();
 }
 
-function tickExpiry() {
+function tick() {
   const left = file.expiresAt - Date.now();
-  const el = $('#exp');
-  if (el) el.textContent = countdown(left);
-  if (left <= 0) location.reload();
+  const total = file.createdAt ? file.expiresAt - file.createdAt : DAY;
+  $('#exp') && ($('#exp').textContent = clock(left));
+  $('#life') && ($('#life').style.width = `${Math.max(0, Math.min(100, (left / total) * 100))}%`);
+  if (left <= 0) message('This link has expired', 'Files are deleted for good once their timer ends.');
 }
 
 async function download(e) {
@@ -63,7 +73,7 @@ async function download(e) {
   const btn = $('#dl');
   const err = $('#err');
   btn.disabled = true;
-  btn.innerHTML = '<span class="spinner" style="border-top-color:#fff;border-color:rgba(255,255,255,.3)"></span>Preparing…';
+  btn.innerHTML = '<span class="spinner light"></span>Preparing…';
   err.classList.add('hidden');
   try {
     const res = await fetch(`/public/files/${encodeURIComponent(id)}/download`, {
@@ -72,15 +82,19 @@ async function download(e) {
       body: JSON.stringify({ password: $('#pw')?.value }),
     });
     const data = await res.json().catch(() => ({}));
+    if (res.status === 410) return message('No longer available', data.message || 'This link has expired.');
     if (!res.ok) throw new Error(data.message || 'Download failed');
     location.assign(data.url); // short-lived presigned S3 URL
-    file.downloads = data.downloads;
-    setTimeout(render, 800);
+    file.downloads = data.downloads ?? file.downloads + 1;
+    setTimeout(() => {
+      render();
+      $('#dl').innerHTML = `${icon('check', 17)}Downloaded. Download again`;
+    }, 600);
   } catch (ex) {
     err.textContent = ex.message;
     err.classList.remove('hidden');
     btn.disabled = false;
-    btn.innerHTML = `${icon('download')}Download`;
+    btn.innerHTML = `${icon('download', 17)}Download`;
   }
 }
 

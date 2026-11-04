@@ -11,22 +11,22 @@ export class ApiError extends Error {
 export async function api(path, { method = 'GET', body } = {}) {
   const headers = {};
   const token = await auth.accessToken();
-  if (token) headers.authorization = `Bearer ${token}`;
+  if (token && token !== 'dev') headers.authorization = `Bearer ${token}`;
   if (body !== undefined) headers['content-type'] = 'application/json';
   const res = await fetch(path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
   if (res.status === 204) return null;
   const data = await res.json().catch(() => ({}));
   if (res.status === 401 && path.startsWith('/api')) {
-    auth.logout();
+    location.assign(`/login?next=${encodeURIComponent(location.pathname + location.hash)}`);
   }
   if (!res.ok) throw new ApiError(res.status, data);
   return data;
 }
 
-/** Browser -> S3 directly with a presigned PUT, with progress events. The API never touches file bytes. */
+/** Browser -> S3 with a presigned PUT and progress events. The API never touches file bytes. */
 export function putWithProgress(url, file, contentType, onProgress) {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
+  const xhr = new XMLHttpRequest();
+  const promise = new Promise((resolve, reject) => {
     xhr.open('PUT', url);
     xhr.setRequestHeader('content-type', contentType);
     xhr.upload.onprogress = (e) => e.lengthComputable && onProgress(e.loaded, e.total);
@@ -34,6 +34,7 @@ export function putWithProgress(url, file, contentType, onProgress) {
     xhr.onerror = () => reject(new Error('Network error during upload'));
     xhr.onabort = () => reject(new Error('Upload cancelled'));
     xhr.send(file);
-    putWithProgress.current = xhr;
   });
+  promise.abort = () => xhr.abort();
+  return promise;
 }

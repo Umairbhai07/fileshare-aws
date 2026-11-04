@@ -5,6 +5,7 @@ import { newId, keyFor, idFromKey, safeFileName } from './ids.js';
 const HOUR = 3600_000;
 export const EXPIRY_CHOICES_HOURS = [1, 6, 12, 24];
 export const PENDING_UPLOAD_TIMEOUT_MS = HOUR;
+export const MAX_LIFETIME_MS = 24 * HOUR;
 
 export const DEFAULT_LIMITS = {
   maxFileBytes: 2 * 1024 ** 3, // 2 GB per file (single presigned PUT supports up to 5 GB)
@@ -32,6 +33,7 @@ export function privateView(item, now) {
     maxDownloads: item.maxDownloads ?? 0,
     lastDownloadAt: item.lastDownloadAt ?? null,
     passwordProtected: Boolean(item.passwordHash),
+    message: item.message || '',
   };
 }
 
@@ -42,9 +44,11 @@ export function publicView(item, now) {
     size: item.size,
     contentType: item.contentType,
     expiresAt: item.expiresAt,
+    createdAt: item.createdAt,
     downloads: item.downloads ?? 0,
     maxDownloads: item.maxDownloads ?? 0,
     passwordProtected: Boolean(item.passwordHash),
+    message: item.message || '',
     status: fileStatus(item, now),
   };
 }
@@ -62,6 +66,7 @@ export function createFileService({ repo, storage, limits = DEFAULT_LIMITS, cloc
     const expiresInHours = Number(input.expiresInHours ?? 24);
     const maxDownloads = input.maxDownloads == null || input.maxDownloads === '' ? 0 : Number(input.maxDownloads);
     const password = input.password ? String(input.password) : '';
+    const message = input.message ? String(input.message).trim().slice(0, 500) : '';
 
     if (!Number.isInteger(size) || size <= 0) throw badRequest('size must be a positive integer');
     if (size > limits.maxFileBytes) throw tooLarge(`Files can be at most ${Math.round(limits.maxFileBytes / 1024 ** 3)} GB`);
@@ -91,6 +96,7 @@ export function createFileService({ repo, storage, limits = DEFAULT_LIMITS, cloc
       downloads: 0,
       maxDownloads,
       passwordHash: password ? await hashPassword(password) : null,
+      message: message || null,
     };
     await repo.put(item);
     const uploadUrl = await storage.presignPut(item.key, size, contentType);
@@ -127,6 +133,71 @@ export function createFileService({ repo, storage, limits = DEFAULT_LIMITS, cloc
     const updated = await repo.markReady(id, head.size, clock());
     if (updated) await repo.bumpUserStats(item.ownerId, { uploads: 1, bytes: head.size });
     return privateView(updated || item, clock());
+  }
+
+  async function ownedItem(user, id) {
+    const item = await repo.get(String(id || ''));
+    if (!item || !item.ownerId) throw notFound();
+    if (item.ownerId !== user.sub) throw forbidden();
+    if (item.expiresAt <= clock()) throw gone();
+    return item;
+  }
+
+  // Rename (display name only; the S3 key never changes) and/or extend expiry to N hours from now.
+  async function updateFile(user, id, input = {}) {
+    const item = await ownedItem(user, id);
+    const fields = {};
+    if (input.name !== undefined) {
+      const name = safeFileName(input.name);
+      if (!name.trim()) throw badRequest('Name cannot be empty');
+      fields.name = name;
+    }
+    if (input.expiresInHours !== undefined) {
+      const h = Number(input.expiresInHours);
+      if (!EXPIRY_CHOICES_HOURS.includes(h)) throw badRequest(`expiresInHours must be one of ${EXPIRY_CHOICES_HOURS.join(', ')}`);
+      // Never past 24 hours after upload: the S3 lifecycle rule deletes objects after 1 day.
+      fields.expiresAt = Math.min(clock() + h * HOUR, item.createdAt + MAX_LIFETIME_MS);
+      fields.ttl = Math.ceil(fields.expiresAt / 1000);
+    }
+    if (input.message !== undefined) {
+      fields.message = String(input.message || '').trim().slice(0, 500) || null;
+    }
+    if (input.maxDownloads !== undefined) {
+      const m = Number(input.maxDownloads || 0);
+      if (!Number.isInteger(m) || m < 0 || m > 1000) throw badRequest('maxDownloads must be between 0 (unlimited) and 1000');
+      fields.maxDownloads = m;
+    }
+    if (input.password !== undefined) {
+      const pw = String(input.password || '');
+      if (pw && (pw.length < 4 || pw.length > 128)) throw badRequest('Password must be 4 to 128 characters');
+      fields.passwordHash = pw ? await hashPassword(pw) : null;
+    }
+    if (!Object.keys(fields).length) throw badRequest('Nothing to update');
+    const updated = await repo.update(id, fields);
+    if (!updated) throw notFound();
+    log('file.updated', { id, fields: Object.keys(fields) });
+    return privateView(updated, clock());
+  }
+
+  // Owner preview: a short-lived inline URL that does not count as a download.
+  async function previewUrl(user, id) {
+    const item = await ownedItem(user, id);
+    if (item.status !== 'ready') throw badRequest('Upload not finished yet');
+    return { url: await storage.presignGet(item.key, item.name, item.contentType, { inline: true }) };
+  }
+
+  async function bulkDelete(user, ids) {
+    if (!Array.isArray(ids) || !ids.length || ids.length > 100) throw badRequest('ids must be a list of 1 to 100 file ids');
+    let deleted = 0;
+    for (const id of ids) {
+      try {
+        await deleteFile(user, String(id));
+        deleted += 1;
+      } catch (err) {
+        if (err.status !== 404) throw err;
+      }
+    }
+    return { deleted };
   }
 
   async function stats(user) {
@@ -223,5 +294,5 @@ export function createFileService({ repo, storage, limits = DEFAULT_LIMITS, cloc
     return stale.length;
   }
 
-  return { createUpload, completeUpload, listFiles, deleteFile, stats, getPublic, download, onObjectCreated, onItemRemoved, sweep };
+  return { createUpload, completeUpload, listFiles, deleteFile, updateFile, previewUrl, bulkDelete, stats, getPublic, download, onObjectCreated, onItemRemoved, sweep };
 }

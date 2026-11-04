@@ -37,6 +37,9 @@ export function createApp({ service, auth, config, localStorage }) {
   api.get('/files', wrap(async (req, res) => res.json({ files: await service.listFiles(req.user) })));
   api.post('/files', wrap(async (req, res) => res.status(201).json(await service.createUpload(req.user, req.body))));
   api.post('/files/:id/complete', wrap(async (req, res) => res.json({ file: await service.completeUpload(req.user, req.params.id) })));
+  api.post('/files/bulk-delete', wrap(async (req, res) => res.json(await service.bulkDelete(req.user, req.body?.ids))));
+  api.patch('/files/:id', wrap(async (req, res) => res.json({ file: await service.updateFile(req.user, req.params.id, req.body || {}) })));
+  api.get('/files/:id/preview', wrap(async (req, res) => res.json(await service.previewUrl(req.user, req.params.id))));
   api.delete('/files/:id', wrap(async (req, res) => {
     await service.deleteFile(req.user, req.params.id);
     res.status(204).end();
@@ -79,9 +82,14 @@ function mountLocalDev(app, { service, config, localStorage }) {
   app.get(/^\/dev-storage\/(.+)$/, (req, res) => {
     const key = decodeURIComponent(req.params[0]);
     if (!localStorage.verify('get', key, req.query.exp, req.query.sig)) return res.status(403).send('Bad signature');
+    if (req.query.inline) return res.sendFile(localStorage.fileFor(key), { dotfiles: 'allow' });
     res.download(localStorage.fileFor(key), String(req.query.name || 'file'), { dotfiles: 'allow' });
   });
   app.options(/^\/dev-storage\/.*/, (_req, res) => res.status(204).end());
+  // Same rewrites the CloudFront Function does in AWS
   app.get('/d/:id', (_req, res) => res.sendFile('share.html', { root: config.local.frontendDir }));
+  for (const page of ['app', 'login', 'signup', 'forgot']) {
+    app.get(`/${page}`, (_req, res) => res.sendFile(`${page}.html`, { root: config.local.frontendDir }));
+  }
   app.use(express.static(config.local.frontendDir, { extensions: ['html'] }));
 }

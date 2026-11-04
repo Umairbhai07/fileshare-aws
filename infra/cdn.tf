@@ -77,7 +77,7 @@ resource "aws_cloudfront_cache_policy" "api" {
   }
 }
 
-# Edge function: pretty share links. /d/<id> serves share.html.
+# Edge function: clean URLs. /d/<id> serves share.html; /app, /login, /signup, /forgot serve their .html page.
 resource "aws_cloudfront_function" "rewrite" {
   name    = "${local.name}-rewrite"
   runtime = "cloudfront-js-2.0"
@@ -85,7 +85,9 @@ resource "aws_cloudfront_function" "rewrite" {
   code    = <<-JS
     function handler(event) {
       var req = event.request;
-      if (/^\/d\/[A-Za-z0-9]+\/?$/.test(req.uri)) req.uri = '/share.html';
+      var uri = req.uri;
+      if (/^\/d\/[A-Za-z0-9]+\/?$/.test(uri)) req.uri = '/share.html';
+      else if (/^\/(app|login|signup|forgot)\/?$/.test(uri)) req.uri = '/' + uri.split('/')[1] + '.html';
       return req;
     }
   JS
@@ -204,6 +206,7 @@ resource "aws_s3_object" "config" {
   content = <<-JS
     window.APP_CONFIG = ${jsonencode({
   authMode      = "cognito"
+  region        = var.region
   cognitoDomain = "https://${aws_cognito_user_pool_domain.main.domain}.auth.${var.region}.amazoncognito.com"
   clientId      = aws_cognito_user_pool_client.web.id
 })};

@@ -10,7 +10,8 @@ Upload a file, get a share link, and the file deletes itself after 1 to 24 hours
 
 ## Features
 
-- **Sign up / sign in** with Amazon Cognito (Hosted UI, OAuth 2.0 + PKCE)
+- **Landing page** with a live product preview, features, how it works, pricing and FAQ
+- **Custom sign up, sign in, email verification and password reset pages** backed by Amazon Cognito (no Hosted UI redirect)
 - **Direct-to-S3 uploads** up to 2 GB with live progress, speed and time left, 3 files in parallel, drag and drop anywhere
 - **Share links** like `https://<app>/d/Xk3pQ9aZm2Lw`, one click to copy
 - **Auto-expiry**: 1, 6, 12 or 24 hours, with a live countdown on the dashboard and the share page
@@ -18,9 +19,12 @@ Upload a file, get a share link, and the file deletes itself after 1 to 24 hours
 - **Download counts**, updated atomically
 - **Dashboard**: active files, storage used against a 10 GB quota, downloads, files expiring soon
 - **Usage page**: uploads per hour over 24 hours, storage by file type, all-time totals
+- **File drawer**: QR code for every link, image preview, rename, extend the timer, add a note for the recipient, change or remove the password
+- **Bulk actions**: select many files to copy links or delete them, plus search, filters and sorting
+- **Activity timeline**, settings with upload defaults, and keyboard shortcuts (`/`, `U`, `G`, `F`)
 - **Delete now** at any time; the link stops working immediately
 - Shows which **EC2 instance and Availability Zone** served your request, so you can watch the load balancer at work
-- Clean white UI with thin borders, no framework and no build step, about 30 KB of JS and CSS, works on mobile
+- Black and white SaaS design with animated border beams and a dotted canvas, no framework and no build step, works on mobile
 
 ## Architecture
 

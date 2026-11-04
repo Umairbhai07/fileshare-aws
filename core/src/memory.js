@@ -13,6 +13,12 @@ export function createMemoryRepo() {
     async get(id) { return clone(items.get(id)); },
     async delete(id) { items.delete(id); },
     async listByOwner(ownerId) { return [...items.values()].filter((i) => i.ownerId === ownerId).map(clone); },
+    async update(id, fields) {
+      const it = items.get(id);
+      if (!it) return null;
+      Object.assign(it, fields);
+      return clone(it);
+    },
     async markReady(id, size, now) {
       const it = items.get(id);
       if (!it) return null;
@@ -56,7 +62,7 @@ export function createLocalStorage({ dir, baseUrl, secret = 'dev-secret' }) {
     fileFor,
     verify(op, key, exp, sig) { return Number(exp) > Date.now() && sig === sign(op, key, exp); },
     async presignPut(key) { return url('put', key, 900); },
-    async presignGet(key, name) { return url('get', key, 300, `&name=${encodeURIComponent(name)}`); },
+    async presignGet(key, name, _type, opts = {}) { return url('get', key, 300, `&name=${encodeURIComponent(name)}${opts.inline ? '&inline=1' : ''}`); },
     async head(key) {
       try { return { size: (await stat(fileFor(key))).size }; } catch { return null; }
     },

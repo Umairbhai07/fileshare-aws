@@ -1,4 +1,5 @@
-# Cognito User Pool + Hosted UI. The SPA signs in with Authorization Code + PKCE (no client secret).
+# Cognito User Pool. The site has its own sign-in, sign-up and reset pages that call Cognito's public API
+# directly (public client, no secret). The Hosted UI domain is kept as a fallback.
 resource "aws_cognito_user_pool" "main" {
   name                     = "${local.name}-users"
   username_attributes      = ["email"]
@@ -21,6 +22,17 @@ resource "aws_cognito_user_pool" "main" {
   }
 
   admin_create_user_config { allow_admin_create_user_only = false }
+
+  schema {
+    name                = "name"
+    attribute_data_type = "String"
+    mutable             = true
+    required            = false
+    string_attribute_constraints {
+      min_length = 0
+      max_length = 100
+    }
+  }
 
   verification_message_template {
     default_email_option = "CONFIRM_WITH_CODE"
@@ -48,7 +60,7 @@ resource "aws_cognito_user_pool_client" "web" {
   supported_identity_providers         = ["COGNITO"]
   callback_urls                        = ["${local.app_origin}/", "http://localhost:8080/"]
   logout_urls                          = ["${local.app_origin}/", "http://localhost:8080/"]
-  explicit_auth_flows                  = ["ALLOW_REFRESH_TOKEN_AUTH", "ALLOW_USER_SRP_AUTH"]
+  explicit_auth_flows                  = ["ALLOW_REFRESH_TOKEN_AUTH", "ALLOW_USER_SRP_AUTH", "ALLOW_USER_PASSWORD_AUTH"] # custom sign-in page calls InitiateAuth over TLS
   prevent_user_existence_errors        = "ENABLED"
   enable_token_revocation              = true
 

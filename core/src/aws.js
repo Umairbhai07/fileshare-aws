@@ -47,6 +47,24 @@ export function createDynamoRepo({ tableName, client }) {
       } while (ExclusiveStartKey);
       return out;
     },
+    async update(id, fields) {
+      const names = {};
+      const values = {};
+      const sets = Object.entries(fields).map(([k, v], i) => {
+        names[`#f${i}`] = k;
+        values[`:v${i}`] = v;
+        return `#f${i} = :v${i}`;
+      });
+      return conditional(async () => (await ddb.send(new UpdateCommand({
+        TableName: tableName,
+        Key: { id },
+        UpdateExpression: `SET ${sets.join(', ')}`,
+        ConditionExpression: 'attribute_exists(id)',
+        ExpressionAttributeNames: names,
+        ExpressionAttributeValues: values,
+        ReturnValues: 'ALL_NEW',
+      }))).Attributes);
+    },
     async markReady(id, size, now) {
       return conditional(async () => (await ddb.send(new UpdateCommand({
         TableName: tableName,
@@ -118,12 +136,12 @@ export function createS3Storage({ bucket, client }) {
         signableHeaders: new Set(['content-type', 'content-length']),
       });
     },
-    async presignGet(key, name, contentType) {
+    async presignGet(key, name, contentType, opts = {}) {
       const encoded = encodeURIComponent(name).replace(/['()*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
       return getSignedUrl(s3, new GetObjectCommand({
         Bucket: bucket,
         Key: key,
-        ResponseContentDisposition: `attachment; filename="${name.replace(/[^\x20-\x7e]|"/g, '_')}"; filename*=UTF-8''${encoded}`,
+        ResponseContentDisposition: `${opts.inline ? 'inline' : 'attachment'}; filename="${name.replace(/[^\x20-\x7e]|"/g, '_')}"; filename*=UTF-8''${encoded}`,
         ResponseContentType: contentType || 'application/octet-stream',
       }), { expiresIn: 300 });
     },

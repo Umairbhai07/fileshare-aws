@@ -100,3 +100,24 @@ test('completeUpload uses storage head', async () => {
   sizes.set(`uploads/alice/${file.id}/c`, 7);
   assert.equal((await svc.completeUpload(alice, file.id)).status, 'ready');
 });
+
+test('rename, extend, preview and bulk delete', async () => {
+  const { svc, advance } = setup();
+  const a = (await svc.createUpload(alice, { name: 'a.txt', size: 1, expiresInHours: 1 })).file;
+  const b = (await svc.createUpload(alice, { name: 'b.txt', size: 1 })).file;
+  await svc.onObjectCreated(`uploads/alice/${a.id}/a.txt`, 1);
+  advance(30 * 60_000);
+  const renamed = await svc.updateFile(alice, a.id, { name: 'final.txt', expiresInHours: 24 });
+  assert.equal(renamed.name, 'final.txt');
+  assert.equal(renamed.expiresAt - renamed.createdAt, 24 * 3600_000, 'extend is capped at 24h after upload');
+  assert.equal((await svc.updateFile(alice, a.id, { message: '  hi there ' })).message, 'hi there');
+  await assert.rejects(svc.updateFile(bob, a.id, { name: 'x' }), { status: 403 });
+  await assert.rejects(svc.updateFile(alice, a.id, { expiresInHours: 48 }), { status: 400 });
+  const pw = await svc.updateFile(alice, a.id, { password: 'abcd', maxDownloads: 3 });
+  assert.equal(pw.passwordProtected, true);
+  assert.equal(pw.maxDownloads, 3);
+  assert.match((await svc.previewUrl(alice, a.id)).url, /^https:\/\/get\//);
+  await assert.rejects(svc.previewUrl(alice, b.id), { status: 400 });
+  assert.deepEqual(await svc.bulkDelete(alice, [a.id, b.id, 'missing']), { deleted: 2 });
+  assert.equal((await svc.listFiles(alice)).length, 0);
+});

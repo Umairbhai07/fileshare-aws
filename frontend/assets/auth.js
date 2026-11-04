@@ -1,69 +1,153 @@
-// Cognito Hosted UI with OAuth 2.0 Authorization Code + PKCE, no SDK needed.
+// Authentication against Amazon Cognito's public JSON API, straight from the browser (no SDK).
+// The app client is public (no secret), so sign-up, sign-in, refresh and password reset all work
+// with plain fetch calls. In local mode (authMode "dev") the same screens run against a fake backend.
 const cfg = window.APP_CONFIG || { authMode: 'dev' };
-const STORE = 'sharebox.tokens';
-const redirectUri = () => `${location.origin}/`;
+const STORE = 'sharebox.session';
+const isDev = cfg.authMode !== 'cognito';
+const endpoint = () => `https://cognito-idp.${cfg.region}.amazonaws.com/`;
 
-const b64url = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-const randomString = (n = 48) => b64url(crypto.getRandomValues(new Uint8Array(n)));
-
-function save(tokens) {
-  const prev = load() || {};
-  const t = { ...prev, ...tokens, expiresAt: Date.now() + (tokens.expires_in || 3600) * 1000 };
-  localStorage.setItem(STORE, JSON.stringify(t));
-  return t;
+export class AuthError extends Error {
+  constructor(code, message) {
+    super(message);
+    this.code = code;
+  }
 }
+
+const FRIENDLY = {
+  NotAuthorizedException: 'Incorrect email or password.',
+  UserNotFoundException: 'Incorrect email or password.',
+  UsernameExistsException: 'An account with this email already exists. Try signing in.',
+  CodeMismatchException: 'That code is not right. Check the email and try again.',
+  ExpiredCodeException: 'That code has expired. We sent you a new one.',
+  InvalidPasswordException: 'Use at least 8 characters with an uppercase letter, a lowercase letter and a number.',
+  LimitExceededException: 'Too many attempts. Please wait a few minutes and try again.',
+  TooManyRequestsException: 'Too many attempts. Please wait a few minutes and try again.',
+  InvalidParameterException: 'Please check the details and try again.',
+};
+
+async function cognito(action, body) {
+  const res = await fetch(endpoint(), {
+    method: 'POST',
+    headers: { 'content-type': 'application/x-amz-json-1.1', 'x-amz-target': `AWSCognitoIdentityProviderService.${action}` },
+    body: JSON.stringify({ ClientId: cfg.clientId, ...body }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const code = String(data.__type || 'Error').split('#').pop();
+    throw new AuthError(code, FRIENDLY[code] || data.message || 'Something went wrong. Please try again.');
+  }
+  return data;
+}
+
+function claims(jwt) {
+  try {
+    return JSON.parse(decodeURIComponent(escape(atob(jwt.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')))));
+  } catch {
+    return {};
+  }
+}
+
 function load() {
   try { return JSON.parse(localStorage.getItem(STORE)); } catch { return null; }
 }
-function claims(jwt) {
-  try { return JSON.parse(atob(jwt.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))); } catch { return {}; }
+function save(session) {
+  localStorage.setItem(STORE, JSON.stringify(session));
+  return session;
+}
+function fromResult(r, prev = {}) {
+  return save({
+    accessToken: r.AccessToken,
+    idToken: r.IdToken,
+    refreshToken: r.RefreshToken || prev.refreshToken,
+    expiresAt: Date.now() + (r.ExpiresIn || 3600) * 1000,
+  });
 }
 
-async function tokenRequest(params) {
-  const res = await fetch(`${cfg.cognitoDomain}/oauth2/token`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ client_id: cfg.clientId, ...params }),
-  });
-  if (!res.ok) throw new Error('Token request failed');
-  return res.json();
-}
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+// Local mode keeps a pretend user list in localStorage so every screen can be tried without AWS.
+const devUsers = () => { try { return JSON.parse(localStorage.getItem('sharebox.devusers')) || {}; } catch { return {}; } };
+const setDevUsers = (u) => localStorage.setItem('sharebox.devusers', JSON.stringify(u));
 
 export const auth = {
-  isDev: cfg.authMode !== 'cognito',
+  isDev,
 
-  async login(signup = false) {
-    const verifier = randomString();
-    const state = randomString(16);
-    sessionStorage.setItem('pkce', JSON.stringify({ verifier, state }));
-    const challenge = b64url(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier)));
-    const q = new URLSearchParams({
-      response_type: 'code', client_id: cfg.clientId, redirect_uri: redirectUri(), scope: 'openid email profile',
-      state, code_challenge: challenge, code_challenge_method: 'S256',
-    });
-    location.assign(`${cfg.cognitoDomain}/${signup ? 'signup' : 'oauth2/authorize'}?${q}`);
+  async signIn(email, password) {
+    email = email.trim().toLowerCase();
+    if (isDev) {
+      await wait(350);
+      const u = devUsers()[email];
+      if (u && !u.confirmed) throw new AuthError('UserNotConfirmedException', 'Please verify your email first.');
+      return save({ dev: true, email, name: u?.name || email.split('@')[0], expiresAt: Date.now() + 864e5 });
+    }
+    try {
+      const r = await cognito('InitiateAuth', { AuthFlow: 'USER_PASSWORD_AUTH', AuthParameters: { USERNAME: email, PASSWORD: password } });
+      if (!r.AuthenticationResult) throw new AuthError('Challenge', 'This account needs an extra step that Sharebox does not support yet.');
+      return fromResult(r.AuthenticationResult);
+    } catch (err) {
+      if (err.code === 'UserNotConfirmedException') throw new AuthError(err.code, 'Please verify your email first.');
+      throw err;
+    }
   },
 
-  /** Handles ?code=... on return from the Hosted UI. Returns true if a login completed. */
-  async handleCallback() {
-    const q = new URLSearchParams(location.search);
-    if (!q.get('code')) return false;
-    const { verifier, state } = JSON.parse(sessionStorage.getItem('pkce') || '{}');
-    history.replaceState(null, '', '/');
-    if (!verifier || q.get('state') !== state) return false;
-    save(await tokenRequest({ grant_type: 'authorization_code', code: q.get('code'), redirect_uri: redirectUri(), code_verifier: verifier }));
-    sessionStorage.removeItem('pkce');
-    return true;
+  async signUp({ name, email, password }) {
+    email = email.trim().toLowerCase();
+    if (isDev) {
+      await wait(400);
+      const users = devUsers();
+      if (users[email]?.confirmed) throw new AuthError('UsernameExistsException', FRIENDLY.UsernameExistsException);
+      users[email] = { name, confirmed: false };
+      setDevUsers(users);
+      return { destination: email };
+    }
+    const r = await cognito('SignUp', {
+      Username: email,
+      Password: password,
+      UserAttributes: [{ Name: 'email', Value: email }, { Name: 'name', Value: name }],
+    });
+    return { destination: r.CodeDeliveryDetails?.Destination || email };
+  },
+
+  async confirmSignUp(email, code) {
+    email = email.trim().toLowerCase();
+    if (isDev) {
+      await wait(350);
+      if (!/^\d{6}$/.test(code)) throw new AuthError('CodeMismatchException', FRIENDLY.CodeMismatchException);
+      const users = devUsers();
+      users[email] = { ...(users[email] || {}), confirmed: true };
+      setDevUsers(users);
+      return;
+    }
+    await cognito('ConfirmSignUp', { Username: email, ConfirmationCode: code });
+  },
+
+  async resendCode(email) {
+    if (isDev) return wait(300);
+    await cognito('ResendConfirmationCode', { Username: email.trim().toLowerCase() });
+  },
+
+  async forgotPassword(email) {
+    if (isDev) return wait(350);
+    await cognito('ForgotPassword', { Username: email.trim().toLowerCase() });
+  },
+
+  async resetPassword(email, code, password) {
+    if (isDev) {
+      await wait(350);
+      if (!/^\d{6}$/.test(code)) throw new AuthError('CodeMismatchException', FRIENDLY.CodeMismatchException);
+      return;
+    }
+    await cognito('ConfirmForgotPassword', { Username: email.trim().toLowerCase(), ConfirmationCode: code, Password: password });
   },
 
   async accessToken() {
-    if (this.isDev) return null;
-    const t = load();
-    if (!t) return null;
-    if (Date.now() < t.expiresAt - 60_000) return t.access_token;
-    if (!t.refresh_token) return null;
+    const s = load();
+    if (!s) return null;
+    if (s.dev) return isDev ? 'dev' : null;
+    if (Date.now() < s.expiresAt - 60_000) return s.accessToken;
+    if (!s.refreshToken) return null;
     try {
-      return save(await tokenRequest({ grant_type: 'refresh_token', refresh_token: t.refresh_token })).access_token;
+      const r = await cognito('InitiateAuth', { AuthFlow: 'REFRESH_TOKEN_AUTH', AuthParameters: { REFRESH_TOKEN: s.refreshToken } });
+      return fromResult(r.AuthenticationResult, s).accessToken;
     } catch {
       localStorage.removeItem(STORE);
       return null;
@@ -71,18 +155,28 @@ export const auth = {
   },
 
   async isSignedIn() {
-    return this.isDev || Boolean(await this.accessToken());
+    return Boolean(await this.accessToken());
   },
 
   user() {
-    if (this.isDev) return { email: 'dev@localhost' };
-    const c = claims(load()?.id_token || '');
-    return { email: c.email || c['cognito:username'] || 'user' };
+    const s = load() || {};
+    if (s.dev) return { email: s.email, name: s.name };
+    const c = claims(s.idToken || '');
+    return { email: c.email || '', name: c.name || (c.email || 'there').split('@')[0] };
   },
 
-  logout() {
+  async signOut() {
+    const s = load();
     localStorage.removeItem(STORE);
-    if (this.isDev) return location.reload();
-    location.assign(`${cfg.cognitoDomain}/logout?${new URLSearchParams({ client_id: cfg.clientId, logout_uri: redirectUri() })}`);
+    if (s?.accessToken && !isDev) cognito('GlobalSignOut', { AccessToken: s.accessToken }).catch(() => {});
+    location.assign('/login');
   },
 };
+
+/** Password rules shared by sign-up and reset (match the Cognito user pool policy). */
+export const PASSWORD_RULES = [
+  { id: 'len', label: '8 or more characters', test: (p) => p.length >= 8 },
+  { id: 'upper', label: 'An uppercase letter', test: (p) => /[A-Z]/.test(p) },
+  { id: 'lower', label: 'A lowercase letter', test: (p) => /[a-z]/.test(p) },
+  { id: 'num', label: 'A number', test: (p) => /\d/.test(p) },
+];
