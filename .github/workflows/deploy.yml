@@ -1,7 +1,7 @@
 name: Deploy
 
 # Ships a new version to an environment created with `make deploy`.
-# Setup (once): run Terraform with github_repo set, then add to the repo:
+# Works out of the box for the current deployment (defaults below). For another environment, add:
 #   Secret   AWS_DEPLOY_ROLE_ARN          = terraform output github_deploy_role_arn
 #   Variable AWS_REGION                   = terraform output region
 #   Variable PROJECT                      = sharebox (your `project` variable)
@@ -25,12 +25,18 @@ concurrency:
 
 jobs:
   deploy:
-    if: vars.ECR_REPOSITORY_URL != ''
     runs-on: ubuntu-latest
     environment: production
+    # Values come from repo variables when set, otherwise from this deployment's Terraform outputs.
+    # None of them are secrets: access is granted only through the OIDC role's trust policy.
     env:
-      AWS_REGION: ${{ vars.AWS_REGION }}
-      PROJECT: ${{ vars.PROJECT }}
+      AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+      PROJECT: ${{ vars.PROJECT || 'sharebox' }}
+      ROLE_ARN: ${{ secrets.AWS_DEPLOY_ROLE_ARN || 'arn:aws:iam::668944406661:role/sharebox-github-deploy' }}
+      ECR_REPOSITORY_URL: ${{ vars.ECR_REPOSITORY_URL || '668944406661.dkr.ecr.us-east-1.amazonaws.com/sharebox-api' }}
+      ASG_NAME: ${{ vars.ASG_NAME || 'sharebox-api' }}
+      FRONTEND_BUCKET: ${{ vars.FRONTEND_BUCKET || 'sharebox-web-668944406661-9pfa10' }}
+      CLOUDFRONT_DISTRIBUTION_ID: ${{ vars.CLOUDFRONT_DISTRIBUTION_ID || 'E2D3FDC9LCR0KX' }}
     steps:
       - uses: actions/checkout@v5
 
@@ -44,8 +50,8 @@ jobs:
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
-          aws-region: ${{ vars.AWS_REGION }}
+          role-to-assume: ${{ env.ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Log in to ECR
         uses: aws-actions/amazon-ecr-login@v2
@@ -60,8 +66,8 @@ jobs:
           push: true
           build-args: APP_VERSION=${{ github.sha }}
           tags: |
-            ${{ vars.ECR_REPOSITORY_URL }}:${{ github.sha }}
-            ${{ vars.ECR_REPOSITORY_URL }}:latest
+            ${{ env.ECR_REPOSITORY_URL }}:${{ github.sha }}
+            ${{ env.ECR_REPOSITORY_URL }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -75,19 +81,19 @@ jobs:
 
       - name: Deploy frontend
         run: |
-          aws s3 sync frontend/ "s3://${{ vars.FRONTEND_BUCKET }}/" --delete --exclude config.js \
+          aws s3 sync frontend/ "s3://${{ env.FRONTEND_BUCKET }}/" --delete --exclude config.js \
             --cache-control "public, max-age=300"
-          aws s3 cp frontend/index.html "s3://${{ vars.FRONTEND_BUCKET }}/index.html" --cache-control no-cache --content-type "text/html; charset=utf-8"
-          aws s3 cp frontend/share.html "s3://${{ vars.FRONTEND_BUCKET }}/share.html" --cache-control no-cache --content-type "text/html; charset=utf-8"
-          aws cloudfront create-invalidation --distribution-id "${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}" --paths "/*" --query 'Invalidation.Id' --output text
+          aws s3 cp frontend/index.html "s3://${{ env.FRONTEND_BUCKET }}/index.html" --cache-control no-cache --content-type "text/html; charset=utf-8"
+          aws s3 cp frontend/share.html "s3://${{ env.FRONTEND_BUCKET }}/share.html" --cache-control no-cache --content-type "text/html; charset=utf-8"
+          aws cloudfront create-invalidation --distribution-id "${{ env.CLOUDFRONT_DISTRIBUTION_ID }}" --paths "/*" --query 'Invalidation.Id' --output text
 
       - name: Roll the EC2 fleet (rolling instance refresh, 50% min healthy)
         run: |
-          ID=$(aws autoscaling start-instance-refresh --auto-scaling-group-name "${{ vars.ASG_NAME }}" \
+          ID=$(aws autoscaling start-instance-refresh --auto-scaling-group-name "${{ env.ASG_NAME }}" \
             --preferences '{"MinHealthyPercentage":50,"InstanceWarmup":120}' --query InstanceRefreshId --output text)
           echo "Instance refresh $ID started"
           for i in $(seq 1 60); do
-            STATUS=$(aws autoscaling describe-instance-refreshes --auto-scaling-group-name "${{ vars.ASG_NAME }}" \
+            STATUS=$(aws autoscaling describe-instance-refreshes --auto-scaling-group-name "${{ env.ASG_NAME }}" \
               --instance-refresh-ids "$ID" --query 'InstanceRefreshes[0].Status' --output text)
             echo "$(date +%T) $STATUS"
             case "$STATUS" in
