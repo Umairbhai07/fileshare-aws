@@ -1,0 +1,12 @@
+# Copy to terraform.tfvars and edit.
+project            = "sharebox"
+region             = "us-east-1"
+alert_email        = "you@example.com" # confirm the SNS email AWS sends you
+monthly_budget_usd = 25
+
+# Cost knobs
+private_instances = true # false = EC2 in public subnets, skips ~$0.03/h of VPC endpoints
+asg_desired       = 2    # 1 halves EC2 cost; 2 = one instance per AZ
+
+# CI/CD (optional): lets GitHub Actions in this repo deploy via OIDC
+# github_repo = "your-name/fileshare-aws"

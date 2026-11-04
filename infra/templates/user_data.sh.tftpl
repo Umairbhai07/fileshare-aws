@@ -1,0 +1,38 @@
+#!/bin/bash
+# Boots an Amazon Linux 2023 instance and runs the API container from ECR.
+# Works without internet: dnf repos come from S3 (gateway endpoint), ECR and Logs via interface endpoints.
+set -euxo pipefail
+
+dnf install -y docker
+systemctl enable --now docker
+
+TOKEN=$(curl -sX PUT http://169.254.169.254/latest/api/token -H "X-aws-ec2-metadata-token-ttl-seconds: 300")
+md() { curl -s -H "X-aws-ec2-metadata-token: $TOKEN" "http://169.254.169.254/latest/meta-data/$1"; }
+INSTANCE_ID=$(md instance-id)
+AZ=$(md placement/availability-zone)
+
+cat > /etc/sharebox.env <<'ENVEOF'
+MODE=aws
+PORT=8080
+AWS_REGION=${region}
+TABLE_NAME=${table_name}
+FILES_BUCKET=${files_bucket}
+COGNITO_USER_POOL_ID=${user_pool_id}
+COGNITO_CLIENT_ID=${client_id}
+COGNITO_JWKS=${jwks}
+ENVEOF
+echo "INSTANCE_ID=$INSTANCE_ID" >> /etc/sharebox.env
+echo "AVAILABILITY_ZONE=$AZ" >> /etc/sharebox.env
+chmod 600 /etc/sharebox.env
+
+# Retry until the image exists (first deploy) and the endpoints are reachable.
+until aws ecr get-login-password --region ${region} | docker login --username AWS --password-stdin ${registry}; do sleep 10; done
+until docker pull ${image}; do sleep 15; done
+
+docker run -d --name api --restart always -p 8080:8080 \
+  --env-file /etc/sharebox.env \
+  --log-driver awslogs \
+  --log-opt awslogs-region=${region} \
+  --log-opt awslogs-group=${log_group} \
+  --log-opt awslogs-stream="$INSTANCE_ID" \
+  ${image}

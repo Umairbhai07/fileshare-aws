@@ -1,0 +1,16 @@
+# Local run of the production image in dev mode (in-memory DB, files on disk, no login).
+services:
+  api:
+    build:
+      context: .
+      dockerfile: app/Dockerfile
+    ports: ["8080:8080"]
+    environment:
+      MODE: local
+      FRONTEND_DIR: /srv/frontend
+      DATA_DIR: /data
+    volumes:
+      - ./frontend:/srv/frontend:ro
+      - sharebox-data:/data
+volumes:
+  sharebox-data:

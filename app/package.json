@@ -1,0 +1,17 @@
+{
+  "name": "@fileshare/app",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "MODE=local PORT=8080 node --watch src/server.js",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "@fileshare/core": "1.0.0",
+    "aws-jwt-verify": "^5.0.0",
+    "express": "^5.1.0"
+  }
+}

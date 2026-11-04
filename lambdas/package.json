@@ -1,0 +1,17 @@
+{
+  "name": "@fileshare/lambdas",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "@aws-sdk/util-dynamodb": "^3.700.0",
+    "@fileshare/core": "1.0.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0"
+  }
+}

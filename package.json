@@ -1,0 +1,12 @@
+{
+  "name": "fileshare-aws",
+  "private": true,
+  "type": "module",
+  "workspaces": ["core", "app", "lambdas"],
+  "scripts": {
+    "test": "npm test --workspaces --if-present",
+    "dev": "npm run dev --workspace app",
+    "build:lambdas": "npm run build --workspace lambdas"
+  },
+  "engines": { "node": ">=22" }
+}

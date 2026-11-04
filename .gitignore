@@ -1,0 +1,13 @@
+node_modules/
+lambdas/dist/
+.data/
+*.zip
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+infra/.terraform.lock.hcl.bak
+.env
+.DS_Store
+infra/.terraform.lock.hcl
+infra/.build/
