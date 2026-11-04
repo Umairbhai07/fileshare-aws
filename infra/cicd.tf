@@ -2,6 +2,8 @@
 locals {
   github_enabled = var.github_repo != ""
   oidc_url       = "token.actions.githubusercontent.com"
+  gh_owner       = split("/", var.github_repo)[0]
+  gh_repo        = try(split("/", var.github_repo)[1], "")
   oidc_arn = local.github_enabled ? (
     var.create_github_oidc_provider ? aws_iam_openid_connect_provider.github[0].arn :
     "arn:${data.aws_partition.current.partition}:iam::${local.account_id}:oidc-provider/${local.oidc_url}"
@@ -31,7 +33,14 @@ data "aws_iam_policy_document" "github_assume" {
     condition {
       test     = "StringLike"
       variable = "${local.oidc_url}:sub"
-      values   = ["repo:${var.github_repo}:ref:refs/heads/main", "repo:${var.github_repo}:environment:production"]
+      # GitHub sends either the classic subject or the newer one with immutable owner/repo ids
+      # ("repo:owner@123/name@456:..."), so both forms are accepted.
+      values = [
+        "repo:${var.github_repo}:ref:refs/heads/main",
+        "repo:${var.github_repo}:environment:production",
+        "repo:${local.gh_owner}@*/${local.gh_repo}@*:ref:refs/heads/main",
+        "repo:${local.gh_owner}@*/${local.gh_repo}@*:environment:production",
+      ]
     }
   }
 }
